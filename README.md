@@ -1,233 +1,346 @@
-# Carbonfly
+# Carbonfly MCP
 
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/RWTH-E3D/carbonfly/total)&nbsp;
-[![Release](https://img.shields.io/github/v/release/RWTH-E3D/carbonfly?label=Release&color=4c8eda)](https://github.com/RWTH-E3D/carbonfly/releases)&nbsp;
-[![Platforms](https://img.shields.io/badge/Platforms-Rhino_8_&_Grasshopper-4c8eda)](https://www.rhino3d.com/en/)&nbsp;
-[![WSL](https://img.shields.io/badge/Windows-10_&_11_|_with_WSL_2-7a6fac)](https://learn.microsoft.com/en-us/windows/wsl/install)&nbsp;
-[![OpenFOAM](https://img.shields.io/badge/OpenFOAM-v10-7a6fac)](https://openfoam.org/version/10/)&nbsp;
-[![License](https://img.shields.io/github/license/RWTH-E3D/carbonfly?color=888)](https://github.com/RWTH-E3D/carbonfly/blob/master/LICENSE)&nbsp;
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17117827.svg)](https://doi.org/10.5281/zenodo.17117827)&nbsp;
+[![License: LGPL-3.0](https://img.shields.io/badge/License-LGPL--3.0-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
+[![OpenFOAM v10](https://img.shields.io/badge/OpenFOAM-v10-7a6fac)](https://openfoam.org/version/10/)
+[![WSL 2](https://img.shields.io/badge/Windows-10_&_11_|_WSL_2-7a6fac)](https://learn.microsoft.com/en-us/windows/wsl/install)
 
-An easy-to-use Python library and Grasshopper toolbox for indoor CO2 CFD simulation, based on OpenFOAM and the Windows Subsystem for Linux (WSL).
+**MCP server for Carbonfly** – Headless indoor CO2 CFD simulation with OpenFOAM via WSL, accessible through any MCP-compatible agent application (OpenCode, Claude Code, Codex, Cursor, etc.).
 
-<img src="./pics/carbonfly_logo.svg" width="10%" alt="Carbonfly Logo" />
+> **No Rhino. No Grasshopper. No CAD required.** Just your terminal and an AI agent.
+>
+> For the **original Carbonfly Grasshopper plugin**, see the [Carbonfly repository](https://github.com/RWTH-E3D/carbonfly).
 
-## Quick Navigation
+---
 
-- [Key Features](#key-features)
-- [Roadmap](#roadmap)
-- [How to install?](#how-to-install)
-- [Carbonfly Video Tutorials](#carbonfly-video-tutorials)
-- [Examples](#examples)
-- [Documentation](#documentation)
-- [Instructions for Developers & FAQs](#instructions-for-developers--faqs)
-- [License](#license)
-- [How to cite](#how-to-cite)
+## What it does
 
-## Key Features
+Carbonfly MCP wraps the [Carbonfly](https://github.com/RWTH-E3D/carbonfly) Python library into an MCP server, enabling AI agents to:
 
-1. **Indoor ventilation CFD**: Run steady-state and transient simulations of CO2 transport, airflow, and buoyancy-driven temperature.
-2. **Rhino-to-CFD in "one click"**: Use Rhino/Grasshopper geometry. Carbonfly handles meshing and other setups - no OpenFOAM text files to edit.
-3. **Plug-and-play boundaries**: Presets for inlets, outlets, natural ventilation, and dynamic respiration etc., with sensible defaults you can tweak.
-4. **Fast what-if studies**: Change flow rate, supply temperature, CO2 concentration, and diffuser placement and quickly rerun for comparison.
-5. **Visualization-ready outputs**: Exports a standard OpenFOAM case for viewing CO2 / velocity / temperature / pressure etc. in ParaView.
-6. **In-Grasshopper post-processing & IAQ assessment**: Directly read OpenFOAM results inside Grasshopper for visualization and CO2-based Indoor Air Quality (IAQ) assessment based on different standards.
+1. **Create simulation workspaces** to organize cases
+2. **Generate 3D geometry** as STL (box, cylinder, sphere, or import external STLs)
+3. **Configure boundary conditions** (inlets, outlets, walls, dynamic respiration, recirculation)
+4. **Generate OpenFOAM cases** with mesh, fields, and solver settings
+5. **Run meshing** (blockMesh + snappyHexMesh) via WSL
+6. **Execute simulations** (buoyantReactingFoam) via WSL
+7. **Post-process results** and assess Indoor Air Quality (IAQ) per international standards
 
-**Workflow overview:**
+**Trigger keywords**: `carbonfly`, `cbf`
 
-<img src="./pics/carbonfly_overview.gif" width="50%" alt="Carbonfly workflow overview" />
+---
 
-**Post-processing in ParaView:**
+## Prerequisites
 
-<img src="./examples/_pics/01a_simple_mech_vent_transient_ParaView.gif" width="50%" alt="Carbonfly post-processing in ParaView" />
+- **Windows 10/11** with **WSL 2**
+- **Ubuntu** (20.04 or 22.04) in WSL
+- **OpenFOAM v10** installed in WSL (`/opt/openfoam10/etc/bashrc`)
+- **Python 3.10+** on Windows
 
-**Post-processing in Grasshopper:**
+WSL and OpenFOAM setup guide: [How to Install](https://github.com/RWTH-E3D/carbonfly/blob/master/HowToInstall.md)
 
-<img src="./pics/carbonfly_postprocessing.gif" width="50%" alt="Carbonfly post-processing workflow" />
+---
 
-## Roadmap
+## Installation
 
-<table style="width:100%">
-  <tr>
-    <th>Feature</th>
-    <th>Status</th>
-    <th>Implementation Details</th>
-  </tr>
-  <tr>
-    <td>Transient and steady-state CFD simulation of indoor CO2 / temperature / velocity etc. for mechanical ventilation</td>
-    <td>✅ Done (v0.1.0)</td>
-    <td>Based on WSL 2 (Ubuntu-20.04) &amp; OpenFOAM v10. Solver <code>buoyantReactingFoam</code> which supports multi-species with enhanced buoyancy treatment. The reaction is disabled and only the mixing, mainly driven by buoyancy, is considered.</td>
-  </tr>
-  <tr>
-    <td>Natural ventilation through open windows</td>
-    <td>✅ Done (v0.3.0)</td>
-    <td>
-      See our <a href="./examples" alt="Examples" target="_blank">Examples</a>: 
-      1) Transient: <code>Carbonfly Dynamic Window</code> based on <code>pressureInletOutletVelocity</code>;
-      2) Steady-state: simplified split window (top/bottom);
-      3) Bounding box (indoor + outdoor).
-    </td>
-  </tr>
-  <tr>
-    <td rowspan="2">Manikins with different Levels of Detail (LOD)</td>
-    <td>✅ Done (v0.2.0)</td>
-    <td>LOD0 Manikin is a simplified human model focused on CO2 dispersion. It is represented by straight lines and basic geometric volumes, without body part subdivision. Breathing is simplified to mouth breathing only, with no nasal passage. This abstraction is well suited for multi-occupant scenarios where reduced CFD mesh size and computational cost are essential.</td>
-  </tr>
-  <tr>
-    <td>⏳ Planned</td>
-    <td>LOD1/2/...</td>
-  </tr>
-  <tr>
-    <td rowspan="2">Thermal comfort models</td>
-    <td>✅ Done (v0.4.0)</td>
-    <td>Gagge two-node model for standing, sitting, and sleeping positions (based on <a href="https://github.com/CenterForTheBuiltEnvironment/pythermalcomfort" alt="pythermalcomfort link">pythermalcomfort</a>)</td>
-  </tr>
-  <tr>
-    <td>⏳ Planned</td>
-    <td>Support more models</td>
-  </tr>
-  <tr>
-    <td>Dynamic respiration</td>
-    <td>✅ Done (v0.5.0)</td>
-    <td>Time-varying mouth boundary for <code>U</code> via <code>codedFixedValue</code> (sine). Parameterized by breathing frequency and average breathing flow rate (L/min). Amplitude is computed from target ventilation and patch area.
-    </td>
-  </tr>
-  <tr>
-    <td>Recirculated supply & return</td>
-    <td>✅ Done (v0.6.0)</td>
-    <td>Paired boundaries for internal (no-fresh-air) air recirculation, applicable to various devices, e.g., split AC indoor units for heating or cooling without fresh air input. The CO2 concentration of the supply air is equal to that of the return air (dynamic).
-    </td>
-  </tr>
-  <tr>
-    <td rowspan="3">Post-processing</td>
-    <td>✅ Done (v0.8.0)</td>
-    <td>Perform analysis and visualization directly in Grasshopper instead of ParaView. See our <a href="./examples" alt="Examples" target="_blank">Examples</a>.</td>
-  </tr>
-  <tr>
-    <td>✅ Done (v0.8.0)</td>
-    <td>Indoor Air Quality (IAQ) assessment based on international/national standards. If you know of other CO2-based IAQ standards, please leave a comment in our <a href="https://github.com/RWTH-E3D/carbonfly/discussions/5" alt="discussion board IAQ standards link">discussion board</a>.</td>
-  </tr>
-  <tr>
-    <td>⏳ Planned</td>
-    <td>Integration with multi-objective optimization workflow.</td>
-  </tr>
-</table>
+### One-click: let an agent do it (recommended)
 
-[Back to top ↥](#quick-navigation)
+**Just paste the following prompt into your agent application** (OpenCode, Claude Code, Codex, Cursor, etc.):
 
-## How to install?
+```
+Install and configure the Carbonfly MCP server from this repo.
+Read the README for instructions.
 
-See [How to Install & Update & Uninstall](./HowToInstall.md)
+You need to:
+1. Install dependencies: pip install fastmcp numpy
+2. Add this MCP server to the agent's config file
+3. Tell me when it's ready to test
+```
 
-## Carbonfly Video Tutorials
+The agent will read the README, install dependencies, edit the MCP config file, and verify the server starts. No manual steps needed.
 
-[Carbonfly Tutorial Series (YouTube)](https://www.youtube.com/watch?v=2cnaCHx_9OI&list=PLdKdhraP5SXNjJ81d2iK5UM4sPhSs7X5r)
+> **Tip**: When using OhMyOpenCode, include `ulw` in your prompt for best results.
 
-## Examples
+### Manual installation
 
-See [Examples](./examples)
+```powershell
+git clone https://github.com/RWTH-E3D/carbonfly-mcp.git
+cd carbonfly-mcp
+pip install fastmcp numpy
+```
 
-## Documentation
+#### Configure MCP server
 
-### Python library
+Add the MCP server to your agent's config file:
 
-See [Python Library Documentation](https://rwth-e3d.github.io/carbonfly/)
+<details>
+<summary><b>OpenCode</b> — add to <code>opencode.json</code></summary>
 
-### Grasshopper Toolbox
+```json
+{
+  "mcp": {
+    "carbonfly": {
+      "type": "local",
+      "command": ["<python-path>"],
+      "args": ["-m", "carbonfly_mcp.server"],
+      "cwd": "<clone-path>\\mcp\\src",
+      "enabled": true
+    }
+  }
+}
+```
 
-See [Grasshopper Toolbox Documentation](./documentation)
+`<python-path>` — your Python executable (e.g. `C:\\Users\\...\\Python310\\python.exe`)  
+`<clone-path>` — the cloned repo root (e.g. `D:\\Projects\\carbonfly-mcp`)
 
-## Instructions for Developers & FAQs
+</details>
 
-See [Instructions for Developers & FAQs](./InstructionsForDevelopers.md)
+<details>
+<summary><b>Claude Code</b> — CLI command</summary>
+
+```bash
+claude mcp add carbonfly -- "<python-path>" -m carbonfly_mcp.server
+```
+
+</details>
+
+<details>
+<summary><b>Codex</b> — add to <code>~/.codex/config.toml</code></summary>
+
+```toml
+[mcp_servers.carbonfly]
+command = "<python-path>"
+args = ["-m", "carbonfly_mcp.server"]
+cwd = "<clone-path>\\mcp\\src"
+```
+
+</details>
+
+---
+
+## Quick Start
+
+Start by checking your environment and creating a workspace:
+
+```
+@carbonfly check_environment
+@carbonfly create_workshop with name "demo"
+```
+
+Then create a simple room with ventilation:
+
+```
+@carbonfly create a 5x4x3m room as box STL
+@carbonfly add a 0.15m radius inlet cylinder on the wall at (1, 2, 2.85)
+@carbonfly add a 0.15m radius outlet cylinder at (4, 2, 0.15)
+@carbonfly configure inlet velocity 1.5 m/s downward, outlet as pressure outlet, walls
+@carbonfly generate the OpenFOAM case as "ventilation_demo"
+@carbonfly run meshing then run simulation
+@carbonfly assess IAQ using EN standard
+```
+
+---
+
+## How it works — directory layout & file locations
+
+Carbonfly MCP organizes everything under a **workshop directory** (created by `create_workshop`).
+
+### Workshop directory structure
+
+```
+<your-workshop>/                      # Created by create_workshop
+├── workshop.json                     # Metadata: name, timestamps, version
+├── stl/                              # STL geometry files ← put manual STLs here
+│   ├── room.stl                      #   (generated by create_box_stl)
+│   ├── inlet.stl                     #   (generated by create_cylinder_stl)
+│   └── my_custom_wall.stl            #   (imported via import_stl)
+├── boundaries.json                   # Boundary condition configuration
+└── cases/
+    └── <case_name>/                  # OpenFOAM case directory
+        ├── <case_name>.foam          # ParaView marker — open this in ParaView
+        ├── 0/                        # Initial fields at t=0
+        │   ├── U                     #   velocity field
+        │   ├── T                     #   temperature field
+        │   ├── CO2                   #   CO2 mass fraction field
+        │   └── p                     #   pressure field
+        ├── constant/
+        │   ├── triSurface/           # Working copies of STL files
+        │   └── polyMesh/             # Final mesh (after snappyHexMesh)
+        ├── system/
+        │   ├── blockMeshDict         # Background mesh definition
+        │   ├── snappyHexMeshDict     # Snapping/meshing settings
+        │   ├── controlDict           # Time step, end time, output control
+        │   ├── fvSchemes             # Discretization schemes
+        │   └── fvSolution            # Solver settings
+        ├── 10/                       # Results at t=10s
+        │   ├── U                     #   velocity snapshot
+        │   ├── T                     #   temperature snapshot
+        │   └── CO2                   #   CO2 snapshot
+        └── 60/                       # Results at t=60s ...
+```
+
+### Where to put manual STL files
+
+Place your existing STL files into the workshop's `stl/` folder, **then** call `import_stl`:
+
+```
+# Option A: put the file there first, then register
+Copy my_model.stl  →  <workshop>/stl/my_model.stl
+@carbonfly import_stl with source "<workshop>/stl/my_model.stl" and name "my_model"
+
+# Option B: import from anywhere (copies into stl/ automatically)
+@carbonfly import_stl with source "C:\Users\me\Downloads\ventilation.stl" and name "duct"
+```
+
+### Where to find generated cases
+
+After calling `generate_case`: `<workshop>/cases/<case_name>/`
+
+Use `get_workshop_info` to reveal the full path.
+
+### Where to find simulation results
+
+Results appear as numbered time directories inside the case:
+
+```
+<workshop>/cases/<case_name>/10/     # CO2, U, T at t=10s
+<workshop>/cases/<case_name>/60/     # at t=60s (e.g., final time)
+```
+
+Use `list_results` to see available time directories and fields.
+
+### How to view 3D results (ParaView)
+
+**ParaView must be installed separately** — [paraview.org/download](https://www.paraview.org/download/)
+
+1. Open ParaView → **File → Open**
+2. Navigate to `<workshop>/cases/<case_name>/`
+3. Select the `<case_name>.foam` file → **Apply**
+4. Choose fields from the dropdown: `CO2`, `U`, `T`, `p`
+5. Use **Filters** (Slice, Contour, Glyph) for advanced visualization
+
+No OpenFOAM installation needed on Windows for viewing — ParaView reads `.foam` files directly.
+
+### How to read results programmatically (without ParaView)
+
+| Tool | What it does |
+|---|---|
+| `list_results` | Lists all time directories and available fields |
+| `read_co2_field` | Reads CO2 internal field values from a time step |
+| `read_temperature_field` | Reads temperature internal field values |
+| `probe_point` | Samples a field at a specific (x, y, z) point |
+| `assess_iaq` | Evaluates IAQ using the CO2 field and a chosen standard |
+
+### How to inspect or edit case files
+
+All case files are plain text (OpenFOAM dictionary format):
+
+- **Mesh**: `system/blockMeshDict`, `system/snappyHexMeshDict`
+- **Solver**: `system/controlDict`, `system/fvSchemes`, `system/fvSolution`
+- **Initial conditions**: `0/U`, `0/T`, `0/CO2`, ...
+- **Boundaries**: `boundaries.json` (in workshop root)
+
+### How to re-run or modify a simulation
+
+1. Edit case files manually or re-run `generate_case` (overwrites all files)
+2. Delete time directories (keep `0/`, `constant/`, `system/`)
+3. `run_meshing` then `run_simulation` again
+
+Or create a new case with a different name for comparison.
+
+---
+
+## Available Tools
+
+| Category | Tool | Description |
+|---|---|---|
+| **Workshop** | `create_workshop` | Create a simulation workspace |
+| | `list_workshops` | List all workspaces |
+| | `get_workshop_info` | Get workspace details |
+| | `delete_workshop` | Delete a workspace |
+| **Geometry** | `create_box_stl` | Create axis-aligned box STL |
+| | `create_cylinder_stl` | Create cylinder STL |
+| | `create_sphere_stl` | Create sphere STL |
+| | `import_stl` | Import external STL file |
+| | `list_geometry` | List workshop geometry |
+| **Boundary** | `configure_inlet` | Configure velocity inlet |
+| | `configure_outlet` | Configure pressure outlet |
+| | `configure_wall` | Configure wall boundary |
+| | `configure_dynamic_respiration` | Configure breathing manikin |
+| | `configure_recirculation` | Configure recirculation pair |
+| | `list_boundaries` | List configured boundaries |
+| | `clear_boundaries` | Clear all boundaries |
+| **Simulation** | `check_environment` | Check WSL + OpenFOAM |
+| | `generate_case` | Generate OpenFOAM case |
+| | `run_meshing` | Run blockMesh + snappyHexMesh |
+| | `run_simulation` | Run buoyantReactingFoam |
+| | `get_simulation_status` | Check simulation progress |
+| **Post-process** | `list_results` | List result time directories |
+| | `probe_point` | Probe field at a point |
+| | `assess_iaq` | Assess IAQ per standards |
+| | `read_co2_field` | Read CO2 field values |
+| | `read_temperature_field` | Read temperature field values |
+
+---
+
+## Project Structure
+
+```
+carbonfly-mcp/                          # ← this repo
+├── carbonfly/                          #   Original Carbonfly library (unchanged)
+├── mcp/                                #   MCP server
+│   ├── .agents/skills/carbonfly-mcp-use/
+│   │   └── SKILL.md                    #     Agent usage guide
+│   ├── src/carbonfly_mcp/
+│   │   ├── server.py                   #     FastMCP entry point (26 tools)
+│   │   ├── registry.py                 #     Tool registration
+│   │   ├── workshop/manager.py         #     Workspace management
+│   │   └── tools/
+│   │       ├── geometry.py             #     STL generation (no Rhino)
+│   │       ├── boundary.py             #     Boundary configuration
+│   │       ├── simulation.py           #     Case gen + WSL runner
+│   │       └── postproc.py             #     Results + IAQ assessment
+│   └── pyproject.toml
+├── docs/                               #   Carbonfly Python API docs
+├── examples/                           #   Carbonfly usage examples
+└── README.md                           #   ← you are here
+```
+
+---
+
+## Supported IAQ Standards
+
+| Code | Standard | Basis |
+|---|---|---|
+| EN | CEN/EN 16798-1 (Europe) | delta(CO2) indoor-outdoor |
+| LEHB | Japanese LEHB | Indoor CO2 |
+| SS | Singapore SS 554:2016 | delta(CO2) indoor-outdoor |
+| HK | Hong Kong EPD | Indoor CO2 |
+| UBA | German Umweltbundesamt | Indoor CO2 |
+| DOSH | Malaysia DOSH ICOP IAQ 2010 | Indoor CO2 |
+| NBR | Brazil ABNT NBR 16401/17037 | delta(CO2) indoor-outdoor |
+
+---
 
 ## License
 
-Carbonfly is a free, open-source plugin licensed under [LGPL-3.0](./LICENSE).
+LGPL-3.0 – see [LICENSE](LICENSE).
 
-There are several ways you can contribute:
+Copyright (C) 2026 Qirui Huang, Institute of Energy Efficiency and Sustainable Building (E3D), RWTH Aachen University.
 
-- 🐞 Report bugs or issues you encounter
-- 💡 Suggest improvements or new features
-- 🔧 Submit pull requests to improve the code or documentation
-- 📢 Share the plugin with others who may find it useful
+---
 
-Copyright (C) 2026 Qirui Huang, [Institute of Energy Efficiency and Sustainable Building (E3D), RWTH Aachen University](https://www.e3d.rwth-aachen.de/go/id/iyld/?lidx=1)
+## Citation
 
-[Back to top ↥](#quick-navigation)
+Carbonfly MCP is an extension of the Carbonfly project. If you use it in academic work, please cite:
 
-## How to cite
-
-If you want to cite **Carbonfly**, there are two ways to do it:
-
-- If you use Carbonfly in your academic work, please cite our journal paper: https://doi.org/10.1016/j.softx.2026.102580 (preferred)
-
-  **Examples:**
-
-  BibTeX:
-
-  ```bibtex
-  @article{Huang_2026_Carbonfly_SoftwareX,
-    author  = {Huang, Qirui and Langenbeck, Anna and Frisch, J{\'e}r{\^o}me and van Treeck, Christoph},
-    title   = {{Carbonfly}: {An} easy-to-use {Python} library and {Grasshopper} toolbox for {CO}$_2$-based indoor airflow and air quality {CFD} simulation},
-    journal = {SoftwareX},
-    year    = {2026},
-    volume  = {34},
-    pages   = {102580},
-    doi     = {10.1016/j.softx.2026.102580},
-  }
-  ```
-
-  APA style:
-  ```
-  Huang, Q., Langenbeck, A., Frisch, J., & van Treeck, C. (2026). Carbonfly: An easy-to-use Python library and Grasshopper toolbox for CO₂-based indoor airflow and air quality CFD simulation. SoftwareX, 34, 102580. https://doi.org/10.1016/j.softx.2026.102580
-  ```
-
-- If your work depends on a specific release of Carbonfly, please additionally cite the archived Zenodo version corresponding to the release you used. Each release is archived on [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17117827.svg)](https://doi.org/10.5281/zenodo.17117827). Please either cite the version you used as indexed at Zenodo (for reproducibility) or cite all versions.
-
-  **Examples:**
-
-  BibTeX:
-  ```bibtex
-  @misc{Carbonfly_Zenodo_Huang,
-    author    = {Qirui Huang},
-    title     = {{Carbonfly}: {An} easy-to-use {Python} library and {Grasshopper} toolbox for {CO}$_2$-based indoor airflow and air quality {CFD} simulation},
-    year      = {2025},
-    publisher = {Zenodo},
-    url       = {https://github.com/RWTH-E3D/carbonfly},
-    doi       = {10.5281/zenodo.17117827},
-  }
-  ```
-  
-  APA style:
-  ```
-  Huang, Q. (2025). Carbonfly: An easy-to-use Python library and Grasshopper toolbox for CO₂-based indoor airflow and air quality CFD simulation [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.17117827
-  ```
-  
-  BibTeX (version-specific):
-  ```bibtex
-  @misc{Carbonfly_Zenodo_Huang,
-    author    = {Qirui Huang},
-    title     = {{Carbonfly}: {An} easy-to-use {Python} library and {Grasshopper} toolbox for {CO}$_2$-based indoor airflow and air quality {CFD} simulation (Version v0.8.0)},
-    year      = {2025},
-    note      = {Zenodo}
-    url       = {https://doi.org/10.5281/zenodo.17504360},
-    doi       = {10.5281/zenodo.17504360},
-  }
-  ```
-  
-  APA style (version-specific):
-  ```
-  Huang, Q. (2025). Carbonfly: An easy-to-use Python library and Grasshopper toolbox for CO₂-based indoor airflow and air quality CFD simulation (Version 0.8.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.17504360
-  ```
-
-  > ⚠️ Replace the version and DOI with those of the exact release you used.
-
-
-[Back to top ↥](#quick-navigation)
-
-## Contributors
-
-<a href="https://github.com/RWTH-E3D/carbonfly/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=RWTH-E3D/carbonfly" />
-</a>
+```bibtex
+@article{Huang_2026_Carbonfly_SoftwareX,
+  author  = {Huang, Qirui and Langenbeck, Anna and Frisch, J{\'e}r{\^o}me and van Treeck, Christoph},
+  title   = {{Carbonfly}: {An} easy-to-use {Python} library and {Grasshopper} toolbox for {CO}$_2$-based indoor airflow and air quality {CFD} simulation},
+  journal = {SoftwareX},
+  year    = {2026},
+  volume  = {34},
+  pages   = {102580},
+  doi     = {10.1016/j.softx.2026.102580},
+}
+```
