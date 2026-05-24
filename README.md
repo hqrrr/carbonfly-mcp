@@ -121,23 +121,56 @@ cwd = "<clone-path>\\mcp\\src"
 
 ## Quick Start
 
-Start by checking your environment and creating a workspace:
+**Phase 1 — Setup**
 
 ```
 @carbonfly check_environment
+```
+
+**Phase 2 — Start a workspace**
+
+```
 @carbonfly create_workshop with name "demo"
 ```
 
-Then create a simple room with ventilation:
+**Phase 3 — Add geometry**
 
 ```
 @carbonfly create a 5x4x3m room as box STL
-@carbonfly add a 0.15m radius inlet cylinder on the wall at (1, 2, 2.85)
-@carbonfly add a 0.15m radius outlet cylinder at (4, 2, 0.15)
-@carbonfly configure inlet velocity 1.5 m/s downward, outlet as pressure outlet, walls
-@carbonfly generate the OpenFOAM case as "ventilation_demo"
+```
+
+```
+@carbonfly create an inlet cylinder radius 0.15m height 0.3m at (1, 2, 2.85)
+```
+
+```
+@carbonfly create an outlet cylinder radius 0.15m height 0.3m at (4, 2, 0.05)
+```
+
+**Phase 4 — Configure boundaries**
+
+```
+@carbonfly configure inlet velocity 1.5 m/s downward, room wall, outlet pressure
+```
+
+**Phase 5 — Generate & run**
+
+```
+@carbonfly generate case "ventilation_demo" with cell_size=0.25 transient 120s
+```
+
+```
 @carbonfly run meshing then run simulation
-@carbonfly assess IAQ using EN standard
+```
+
+**Phase 6 — Check results**
+
+```
+@carbonfly get simulation status
+```
+
+```
+@carbonfly assess IAQ with EN standard
 ```
 
 ---
