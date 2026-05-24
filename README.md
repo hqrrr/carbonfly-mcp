@@ -47,13 +47,15 @@ WSL and OpenFOAM setup guide: [How to Install](https://github.com/RWTH-E3D/carbo
 **Just paste the following prompt into your agent application** (OpenCode, Claude Code, Codex, Cursor, etc.):
 
 ```
-Install and configure the Carbonfly MCP server from this repo.
-Read the README for instructions.
+Install and configure the Carbonfly MCP server from this repo:
+https://github.com/hqrrr/carbonfly-mcp
 
+Read the README for instructions.
 You need to:
-1. Install dependencies: pip install fastmcp numpy
-2. Add this MCP server to the agent's config file
-3. Tell me when it's ready to test
+1. Clone the repo
+2. Install dependencies: pip install fastmcp numpy
+3. Add this MCP server to the agent's config file
+4. Tell me when it's ready to test
 ```
 
 The agent will read the README, install dependencies, edit the MCP config file, and verify the server starts. No manual steps needed.
@@ -63,7 +65,7 @@ The agent will read the README, install dependencies, edit the MCP config file, 
 ### Manual installation
 
 ```powershell
-git clone https://github.com/RWTH-E3D/carbonfly-mcp.git
+git clone https://github.com/hqrrr/carbonfly-mcp.git
 cd carbonfly-mcp
 pip install fastmcp numpy
 ```
