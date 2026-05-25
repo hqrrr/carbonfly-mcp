@@ -232,9 +232,15 @@ def generate_case(
     _read_config(ws_dir)  # verify workshop
     stl_dir = ws_dir / "stl"
 
-    # Determine which STL files to use
+    # Determine which STL files to use — prefer multi-region scene.stl
+    scene_stl_path = stl_dir / "scene.stl"
+    use_scene = scene_stl_path.exists()
+
     if stl_files is None:
-        stl_files = sorted([f.name for f in stl_dir.glob("*.stl")])
+        if use_scene:
+            stl_files = ["scene.stl"]
+        else:
+            stl_files = sorted([f.name for f in stl_dir.glob("*.stl")])
     if not stl_files:
         raise SimulationError("No STL files found in workshop.")
 
@@ -242,6 +248,21 @@ def generate_case(
     for sf in stl_files:
         if not (stl_dir / sf).exists():
             raise SimulationError(f"STL file not found: {sf}")
+
+    # Parse region/solid names from the STL
+    def _parse_stl_solid_names(stl_path):
+        names = []
+        with open(stl_path, encoding="utf-8", errors="ignore") as fh:
+            for line in fh:
+                s = line.strip()
+                if s.startswith("solid ") and not s.startswith("solid from "):
+                    names.append(s[6:].strip())
+        return names
+
+    if use_scene:
+        region_names = _parse_stl_solid_names(scene_stl_path)
+    else:
+        region_names = [Path(sf).stem for sf in stl_files]
 
     case_dir = get_case_path(workshop_root, case_name)
     case_dir.mkdir(parents=True, exist_ok=True)
@@ -287,13 +308,12 @@ def generate_case(
     logs.append(f"Written: blockMeshDict (bounds: {min_bnd} -> {max_bnd})")
 
     # 3. Write snappyHexMesh dictionaries
-    stl_main = stl_files[0]  # use first STL as main
+    stl_main = stl_files[0]
     write_surface_features_dict(case_dir, stl_main)
     logs.append("Written: surfaceFeaturesDict")
 
     # Build region info from STL solid names
-    region_names = [Path(sf).stem for sf in stl_files]
-    region_levels = {rn: (0, 2) for rn in region_names}  # default refinement
+    region_levels = {rn: (0, 2) for rn in region_names}
 
     write_snappy_geometry(
         case_dir,
