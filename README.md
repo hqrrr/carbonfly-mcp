@@ -130,7 +130,7 @@ cwd = "<clone-path>\\mcp\\src"
 **Phase 2 — Start a workspace**
 
 ```
-@carbonfly create_workshop with name "demo"
+@carbonfly create_workshop with name "demo" in this project folder
 ```
 
 **Phase 3 — Add geometry**
