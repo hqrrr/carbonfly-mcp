@@ -1,5 +1,11 @@
 # Carbonfly MCP
 
+> **Warning:**
+> 
+> **Under development!**
+> 
+> Some features may still have issues.
+
 [![License: LGPL-3.0](https://img.shields.io/badge/License-LGPL--3.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
 [![OpenFOAM v10](https://img.shields.io/badge/OpenFOAM-v10-7a6fac)](https://openfoam.org/version/10/)
