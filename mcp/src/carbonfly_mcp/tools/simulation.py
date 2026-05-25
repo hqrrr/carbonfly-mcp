@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -31,6 +32,83 @@ def win_to_wsl_path(p: str) -> str:
         return f"/mnt/{p[0].lower()}/{p[2:]}"
     return p
 
+
+
+# ---- WSL headless utilities ----
+
+def _is_wsl_available() -> bool:
+    """Check if wsl.exe is available and functional on the system."""
+    try:
+        result = subprocess.run(
+            ["wsl.exe", "--", "echo", "OK"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        return result.returncode == 0 and "OK" in result.stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
+def run_wsl_headless(
+    command: str,
+    *,
+    cwd_win: Optional[Path | str] = None,
+    foam_bashrc: str = "/opt/openfoam10/etc/bashrc",
+    distro: Optional[str] = None,
+    timeout: Optional[int] = None,
+) -> dict:
+    """Run a command inside WSL headlessly and return stdout, stderr, returncode.
+
+    Args:
+        command: Bash command to run inside WSL.
+        cwd_win: Working directory on Windows (converted to WSL path for cd).
+        foam_bashrc: Path to OpenFOAM bashrc to source.
+        distro: WSL distro name. Uses default if None.
+        timeout: Timeout in seconds for the subprocess.
+
+    Returns:
+        dict with keys: returncode, stdout, stderr.
+    """
+    inner_parts = []
+
+    if cwd_win:
+        cwd_wsl = win_to_wsl_path(str(cwd_win))
+        inner_parts.append(f"cd {shlex.quote(cwd_wsl)}")
+
+    inner_parts.append(f'source "{foam_bashrc}" >/dev/null 2>&1 || true')
+    inner_parts.append(command)
+    inner = " && ".join(inner_parts)
+
+    wsl_argv = ["wsl.exe"]
+    if distro:
+        wsl_argv += ["-d", distro]
+    wsl_argv += ["--", "bash", "-lc", inner]
+
+    try:
+        result = subprocess.run(
+            wsl_argv,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return {
+            "returncode": result.returncode,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "returncode": -1,
+            "stdout": "",
+            "stderr": f"Command timed out after {timeout}s",
+        }
+    except FileNotFoundError:
+        return {
+            "returncode": -1,
+            "stdout": "",
+            "stderr": "wsl.exe not found — WSL is not installed",
+        }
 
 
 # ---- Environment check ----
