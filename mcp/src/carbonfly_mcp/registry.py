@@ -14,9 +14,11 @@ from .workshop.manager import (
 from .tools.geometry import (
     create_box_stl,
     create_cylinder_stl,
+    create_disc_stl,
     create_sphere_stl,
     import_stl,
     list_geometry,
+    clear_geometry,
 )
 
 from .tools.boundary import (
@@ -58,9 +60,11 @@ def register_tools(mcp: FastMCP) -> None:
     # ---- Geometry tools ----
     mcp.add_tool(create_box_stl)
     mcp.add_tool(create_cylinder_stl)
+    mcp.add_tool(create_disc_stl)
     mcp.add_tool(create_sphere_stl)
     mcp.add_tool(import_stl)
     mcp.add_tool(list_geometry)
+    mcp.add_tool(clear_geometry)
 
     # ---- Boundary tools ----
     mcp.add_tool(configure_inlet)
