@@ -5,6 +5,7 @@ grasshopper/icons/icons.psd
 pics/Carbonfly_Logo.ai
 /.idea
 /docs/build/
+demo/
 __pycache__/
 *.py[codz]
 *$py.class
