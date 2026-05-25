@@ -83,67 +83,207 @@ def _rebuild_scene(scene_path, solids):
             f.write(f"endsolid {name}\n")
 
 
+# ---- 2D polygon triangulation (ear-clipping with holes) ----
+
+
+def _cross_2d(a, b, c):
+    """Signed cross product (b-a) × (c-b) in 2D. Positive = left turn (CCW)."""
+    return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])
+
+
+def _polygon_area_2d(poly):
+    """Signed area of a 2D polygon (positive = CCW)."""
+    n = len(poly)
+    area = 0.0
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        area += x1 * y2 - x2 * y1
+    return area / 2.0
+
+
+def _is_ccw(poly):
+    return _polygon_area_2d(poly) > 0
+
+
+def _point_in_triangle_2d(pt, a, b, c):
+    """Check whether *pt* lies strictly inside triangle (a, b, c)."""
+    d1 = _cross_2d(a, b, pt)
+    d2 = _cross_2d(b, c, pt)
+    d3 = _cross_2d(c, a, pt)
+    has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+    has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+    return not (has_neg and has_pos)
+
+
+def _triangulate_polygon_with_holes(outer_2d, holes_2d):
+    """Triangulate a 2D polygon with holes via ear-clipping.
+
+    Args:
+        outer_2d: Outer boundary vertices as [(x,y), …] (CCW).
+        holes_2d: List of hole boundaries, each [(x,y), …] (CW).
+
+    Returns:
+        (vertices, triangles) where *vertices* is the merged vertex list
+        and *triangles* is a list of (i, j, k) index triples.
+    """
+    # Ensure outer is CCW, holes are CW
+    if not _is_ccw(outer_2d):
+        outer_2d = list(reversed(outer_2d))
+    holes_cw = []
+    for hole in holes_2d:
+        if _is_ccw(hole):
+            holes_cw.append(list(reversed(hole)))
+        else:
+            holes_cw.append(list(hole))
+
+    # Build combined vertex list
+    vertices = list(outer_2d)
+    hole_ranges = []  # (start_inclusive, end_exclusive)
+    for hole in holes_cw:
+        start = len(vertices)
+        vertices.extend(hole)
+        hole_ranges.append((start, len(vertices)))
+    n_outer = len(outer_2d)
+
+    # Find a bridge (closest pair) for every hole and build a single
+    # non-self-intersecting polygon index list.
+    indices = list(range(n_outer))
+    for h_idx, (h_start, h_end) in enumerate(hole_ranges):
+        best_oi = 0
+        best_hi = h_start
+        best_d2 = float("inf")
+        for oi in range(n_outer):
+            ox, oy = vertices[oi]
+            for hi in range(h_start, h_end):
+                hx, hy = vertices[hi]
+                d2 = (ox - hx) ** 2 + (oy - hy) ** 2
+                if d2 < best_d2:
+                    best_d2 = d2
+                    best_oi = oi
+                    best_hi = hi
+        # Insert hole into indices at the bridge position
+        bridge_pos = indices.index(best_oi)
+        hole_loop = list(range(best_hi, h_end)) + list(range(h_start, best_hi + 1))
+        indices = (
+            indices[: bridge_pos + 1] + hole_loop + indices[bridge_pos:]
+        )
+
+    # Deduplicate consecutive identical entries
+    deduped = [indices[0]]
+    for idx in indices[1:]:
+        if idx != deduped[-1]:
+            deduped.append(idx)
+    indices = deduped
+
+    # Ear-clipping
+    remaining = indices[:]
+    triangles = []
+
+    # Safety limit to guard against infinite loops
+    max_iters = len(remaining) * 10
+    for _ in range(max_iters):
+        n = len(remaining)
+        if n < 3:
+            break
+        found = False
+        for i in range(n):
+            a_idx = remaining[(i - 1) % n]
+            b_idx = remaining[i]
+            c_idx = remaining[(i + 1) % n]
+            a = vertices[a_idx]
+            b = vertices[b_idx]
+            c = vertices[c_idx]
+            # Must be a convex vertex (left turn for CCW polygon)
+            if _cross_2d(a, b, c) <= 0:
+                continue
+            # No other vertex inside the candidate ear
+            ear_ok = True
+            for j in range(n):
+                v_idx = remaining[j]
+                if v_idx in (a_idx, b_idx, c_idx):
+                    continue
+                if _point_in_triangle_2d(vertices[v_idx], a, b, c):
+                    ear_ok = False
+                    break
+            if ear_ok:
+                triangles.append((a_idx, b_idx, c_idx))
+                remaining.pop(i)
+                found = True
+                break
+        if not found:
+            break
+
+    if len(remaining) >= 3:
+        # Final triangle — should be exactly 3 vertices left
+        triangles.append(tuple(remaining[:3]))
+
+    return vertices, triangles
+
+
 # ---- Facet generators (pure – no side effects) ----
+
 
 def _triangulate_face_with_cutouts(corners, normal, cutouts_2d, resolution=40):
     """Triangulate an axis-aligned rectangular face with circular cutouts.
 
-    Uses a regular grid; triangles whose centroid falls inside any cutout
-    circle are discarded.  Sufficient ``resolution`` produces a smooth
-    hole boundary for snappyHexMesh.
+    Generates explicit circular hole boundaries (polygon approximation)
+    and triangulates the annular region between the face rectangle and the
+    hole(s) using ear-clipping.
 
     Args:
         corners: 4 corner points [c0, c1, c2, c3] in CCW order (outside).
         normal: outward normal of the face (used only for orientation).
         cutouts_2d: [(cx, cy, r), ...] in face-local 2D.
-        resolution: grid resolution per axis.
+        resolution: number of circle segments per hole (minimum 32).
 
     Returns:
         List of 3D triangle vertex triples.
     """
     c0, c1, c2, c3 = corners
 
+    # Establish face-local 2D ↔ 3D mapping -------------------------------------------------
     if abs(normal[2]) > 0.5:
-        to_2d = lambda p: (p[0], p[1])
+        # z-normal face → local coords are (x, y)
         to_3d = lambda x, y: np.array([x, y, c0[2]])
         xmin, xmax = sorted([c0[0], c2[0]])
         ymin, ymax = sorted([c0[1], c2[1]])
     elif abs(normal[1]) > 0.5:
-        to_2d = lambda p: (p[0], p[2])
+        # y-normal face → local coords are (x, z)
         to_3d = lambda x, y: np.array([x, c0[1], y])
         xmin, xmax = sorted([c0[0], c2[0]])
         ymin, ymax = sorted([c0[2], c2[2]])
     else:
-        to_2d = lambda p: (p[1], p[2])
+        # x-normal face → local coords are (y, z)
         to_3d = lambda x, y: np.array([c0[0], x, y])
         xmin, xmax = sorted([c0[1], c2[1]])
         ymin, ymax = sorted([c0[2], c2[2]])
 
-    dx = (xmax - xmin) / resolution
-    dy = (ymax - ymin) / resolution
+    # Build outer polygon (CCW) ------------------------------------------------------------
+    outer_2d = [(xmin, ymin), (xmax, ymin), (xmax, ymax), (xmin, ymax)]
 
+    # Build hole polygons (CW) – approximate circles with N segments -----------------------
+    n_seg = max(32, resolution)
+    holes_2d = []
+    for cx, cy, r in cutouts_2d:
+        # snappyHexMesh extrudes the hole boundary a small amount; shrink slightly
+        # so the effective opening matches the requested radius.
+        r_eff = max(0.0, r - 1e-6)
+        angles = np.linspace(0.0, 2.0 * math.pi, n_seg, endpoint=False)
+        circle_pts = [(cx + r_eff * math.cos(a), cy + r_eff * math.sin(a)) for a in angles]
+        # CW order for holes (so the combined polygon is still simple)
+        holes_2d.append(list(reversed(circle_pts)))
+
+    # Triangulate -------------------------------------------------------------------------
+    vertices_2d, tris_idx = _triangulate_polygon_with_holes(outer_2d, holes_2d)
+
+    # Map to 3D ---------------------------------------------------------------------------
     triangles_3d = []
-
-    for i in range(resolution):
-        for j in range(resolution):
-            x0 = xmin + i * dx
-            x1 = x0 + dx
-            y0 = ymin + j * dy
-            y1 = y0 + dy
-
-            cells = [
-                [(x0, y0), (x1, y0), (x1, y1)],
-                [(x0, y0), (x1, y1), (x0, y1)],
-            ]
-
-            for tri_2d in cells:
-                inside = any(
-                    any((px - ccx) ** 2 + (py - ccy) ** 2 < cr**2 for px, py in tri_2d)
-                    for ccx, ccy, cr in cutouts_2d
-                )
-                if not inside:
-                    tri_3d = tuple(to_3d(p[0], p[1]) for p in tri_2d)
-                    triangles_3d.append(tri_3d)
+    for i, j, k in tris_idx:
+        p0 = to_3d(*vertices_2d[i])
+        p1 = to_3d(*vertices_2d[j])
+        p2 = to_3d(*vertices_2d[k])
+        triangles_3d.append((p0, p1, p2))
 
     return triangles_3d
 
